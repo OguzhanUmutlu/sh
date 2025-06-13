@@ -43,6 +43,7 @@ const Shortcuts = {
         allowInput = false;
         stdinOn = false;
         history.push("");
+        historyIndex++;
         scrollToBottom();
         await runCommand(commandText).wait();
         commandText = "";
@@ -80,13 +81,13 @@ const Shortcuts = {
     KeyUp() {
         if (!stdinOn || !allowInput || historyIndex === 0) return;
         historyIndex--;
-        print("\f" + "\b".repeat(commandText.length) + history[historyIndex]);
+        print("\x1b[2K" + "\b".repeat(commandText.length) + history[historyIndex]);
         curIndex = history[historyIndex].length;
     },
     KeyDown() {
         if (!stdinOn || !allowInput || historyIndex === history.length - 1) return;
         historyIndex++;
-        print("\f" + "\b".repeat(commandText.length) + history[historyIndex]);
+        print("\x1b[2K" + "\b".repeat(commandText.length) + history[historyIndex]);
         curIndex = history[historyIndex].length;
     },
     ArrowLeft: () => Shortcuts.KeyLeft(),
