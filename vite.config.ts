@@ -14,19 +14,8 @@ export default defineConfig({
         outDir: path.resolve(__dirname, "dist"),
         emptyOutDir: true,
         rollupOptions: {
-            input: path.resolve(__dirname, "src/index.html"),
-            external: ["src/server/**"],
-            output: {
-                entryFileNames: "[name].js",
-                chunkFileNames: "[name].js",
-                assetFileNames: "[name].[ext]",
-                format: "es"
-            },
-            onwarn(warning, warn) {
-                if (warning.code !== "EVAL") warn(warning);
-            }
-        },
-        chunkSizeWarningLimit: 4096
+            input: path.resolve(__dirname, "src/index.html")
+        }
     },
     resolve: {
         alias: {
