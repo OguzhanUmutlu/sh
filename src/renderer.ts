@@ -67,9 +67,11 @@ type TerminalNode = {
     content?: string
 };
 
+// todo: scrollbar
 // todo: paging optimization
 // todo: text selection
 // todo: ctrl backspacing & arrowing etc.
+// todo: if statements and function definitions for bash
 
 let cursorVisible = true;
 const binds: TerminalNode[] = [{}];
@@ -89,19 +91,6 @@ export function scrollToBottom() {
 function handleVar(v: string) {
     if (v.startsWith("var(--")) return getTheme().theme[v.slice(6, -1)];
     return v;
-}
-
-function applyStyles(span: Span, map: RenderStyle) {
-    span.classList.toggle("bold", map.bold);
-    span.classList.toggle("italic", map.italic);
-    span.classList.toggle("hidden", map.hidden);
-    span.classList.toggle("dim", map.dim && !map.hidden);
-    span.classList.toggle("underline", map.underline);
-    span.classList.toggle("strikethrough", map.strikethrough);
-    span.classList.toggle("blink", map.blink);
-    span.classList.toggle("rapid-blink", map.rapidBlink);
-    span.style.color = map.inverse ? map.backgroundColor : map.color;
-    span.style.backgroundColor = map.inverse ? map.color : map.backgroundColor;
 }
 
 function appendPart(part: string, apply: Partial<RenderStyle> = {}) {
@@ -288,7 +277,7 @@ function processPart(part: string, cursorStack: { col: number, line: number }[] 
             }
             cursor.bind = 0;
         } else if (code === "2K") {
-            // todo: clear line, not tested
+            // clear line
             const bind = binds[cursor.bind];
             if ("content" in bind) {
                 bind.content = "";
@@ -396,6 +385,19 @@ function processPart(part: string, cursorStack: { col: number, line: number }[] 
     appendPart(part);
 }
 
+/*function applyStyles(span: Span, map: RenderStyle) {
+    span.classList.toggle("bold", map.bold);
+    span.classList.toggle("italic", map.italic);
+    span.classList.toggle("hidden", map.hidden);
+    span.classList.toggle("dim", map.dim && !map.hidden);
+    span.classList.toggle("underline", map.underline);
+    span.classList.toggle("strikethrough", map.strikethrough);
+    span.classList.toggle("blink", map.blink);
+    span.classList.toggle("rapid-blink", map.rapidBlink);
+    span.style.color = map.inverse ? map.backgroundColor : map.color;
+    span.style.backgroundColor = map.inverse ? map.color : map.backgroundColor;
+}*/
+
 function renderStyledText(text: string, style: RenderStyle, pos: RenderPosition) {
     ctx.fillStyle = handleVar(style.inverse ? style.backgroundColor : style.color);
     const lineMargin = 5;
@@ -461,9 +463,9 @@ function render() {
     }
     scrollY = Math.max(0, Math.min(scrollY, (renderedHeight - 1) * (metrics.fontBoundingBoxAscent + 5)));
 
-    ctx.fillStyle = "white";
+    /*ctx.fillStyle = "white";
     const scale = getScale();
-    ctx.fillRect(terminal.width / scale, 100 * scale, 100, terminal.height);
+    ctx.fillRect(terminal.width / scale, 100 * scale, 100, terminal.height);*/
 
     requestAnimationFrame(render);
 }

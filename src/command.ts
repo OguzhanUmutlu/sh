@@ -27,8 +27,78 @@ export function P(file: string) {
 }
 
 async function runCommandSingle(label: string, args: string[], io: IO) {
+    if (label.startsWith("/") || label.startsWith("./") || label.startsWith("../")) {
+        label = P(label);
+        if (!fs.existsSync(label)) {
+            io.stderr.write(`${label}: No such file or directory\n`);
+            return 1;
+        }
+        if (!fs.statSync(label).isFile()) {
+            io.stderr.write(`${label}: Is a directory\n`);
+            return 1;
+        }
+        try {
+            fs.accessSync(label, fs.constants.X_OK)
+        } catch (e) {
+            io.stderr.write(`${label}: Permission denied\n`);
+            return 1;
+        }
+        await runBashFile(label, io);
+        return 0;
+    }
     const cmd = Commands[label];
-    if (cmd) return cmd.run(args, io);
+    if (cmd) {
+        if (args.length > 0) {
+            let i = 0;
+            while (i < args.length) {
+                const argO = args[i];
+                if (argO === "-h" || argO === "--help") {
+                    io.stdout.write(`${label}: ${cmd.description}\n`);
+                    if (cmd.namedParams) {
+                        io.stdout.write("Options:\n");
+                        for (const [param, desc] of Object.entries(cmd.namedParams)) {
+                            const short = Object.keys(cmd.shortParams ?? {}).find(key => cmd.shortParams[key] === param);
+                            io.stdout.write(`  --${param}${short ? `, -${short}` : ""} - ${desc}\n`);
+                        }
+                    }
+                    return 0;
+                }
+
+                let arg = argO;
+                if (arg[0] === "-") {
+                    for (let char of arg.slice(1)) {
+                        if (!cmd.shortParams || !cmd.shortParams[char]) {
+                            io.stderr.write(`${label}: unknown option '${argO}'\n`);
+                            return 1;
+                        }
+                        char = cmd.shortParams[char];
+                        if (char in args) {
+                            io.stderr.write(`${label}: duplicate option '${argO}'\n`);
+                            return 1;
+                        }
+                        args[char] = true;
+                    }
+                    args.splice(i, 1);
+                    continue;
+                }
+                if (cmd.namedParams && arg.startsWith("--")) {
+                    arg = arg.slice(2);
+                    if (arg in cmd.namedParams) {
+                        if (arg in args) {
+                            io.stderr.write(`${label}: duplicate option '${argO}'\n`);
+                            return 1;
+                        }
+                        args[arg] = true;
+                        args.splice(i, 1);
+                        continue;
+                    }
+                }
+                i++;
+            }
+        }
+        // @ts-ignore
+        return await cmd.run(args, io);
+    }
     io.stderr.write(label + ": command not found\n");
     return 1;
 }
@@ -40,7 +110,7 @@ async function flattenStringToken(value: StringTokenValue): Promise<string> {
         else if (Array.isArray(part)) {
             const capturedOutput: string[] = [];
             await runCommandFromTokens(part, new IO(nullReader, new Writer(s => capturedOutput.push(s), () => void 0), defaultStderr));
-            text += capturedOutput.join("");
+            text += capturedOutput.join("").trim();
         } else if (part.type === "var") text += variables[part.value] ?? "";
         else if (part.type === "word") text += part.value;
     }
@@ -52,12 +122,14 @@ async function runCommandFromTokens(tokens: Token[], io = new IO(), signal: Abor
     let lastExitCode = 0;
     let lastPipeValue: string | null = null;
 
-    if (signal.aborted) throw new Error("Aborted");
+    if (signal) {
+        if (signal.aborted) throw new Error("Aborted");
 
-    const controller = new AbortController();
-    signal.addEventListener("abort", () => {
-        controller.abort();
-    });
+        const controller = new AbortController();
+        signal.addEventListener("abort", () => {
+            controller.abort();
+        });
+    }
 
     async function runCurrentCommand(extraArgs: string[] = [], shouldCapture: boolean = false): Promise<{
         exitCode: number;
@@ -192,4 +264,15 @@ async function runCommandFromTokens(tokens: Token[], io = new IO(), signal: Abor
 export function runCommand(command: string, io = new IO()) {
     const abort = new AbortController();
     return {abort: () => abort.abort(), wait: () => runCommandFromTokens(tokenize(command), io, abort.signal)};
+}
+
+export async function runBashFile(file: string, io = new IO()): Promise<void> {
+    const content = fs.readFileSync(file, "utf8");
+    for (const line of content.split("\n")) {
+        const trimmedLine = line.trim();
+        if (trimmedLine && !trimmedLine.startsWith("#")) {
+            const tokens = tokenize(trimmedLine);
+            await runCommandFromTokens(tokens, io);
+        }
+    }
 }
