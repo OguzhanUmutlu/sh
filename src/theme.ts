@@ -1,7 +1,7 @@
 // @ts-ignore
 import {schemes, themes} from "./theme.json";
 
-export const Themes = themes.map(i => i.name);
+export const Themes = themes.map((i: { name: string }) => i.name);
 
 let curTheme: any;
 
