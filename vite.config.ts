@@ -13,8 +13,16 @@ export default defineConfig({
         assetsDir: ".",
         outDir: path.resolve(__dirname, "dist"),
         emptyOutDir: true,
+        sourcemap: false,
+        manifest: false,
+        minify: "esbuild",
         rollupOptions: {
-            input: path.resolve(__dirname, "src/index.html")
+            input: path.resolve(__dirname, "src/index.html"),
+            output: {
+                entryFileNames: `index.js`,
+                chunkFileNames: `[name].js`,
+                assetFileNames: `[name].[ext]`
+            }
         }
     },
     resolve: {
