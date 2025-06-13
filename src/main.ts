@@ -4,6 +4,8 @@ import {IndexedDB} from '@zenfs/dom';
 import {cwdFmt, runCommand} from "./command";
 import {setTheme} from "./theme";
 
+console.log("Loading fs...");
+
 await configureSingle({backend: IndexedDB});
 
 setTheme("Catppuccin Mocha");

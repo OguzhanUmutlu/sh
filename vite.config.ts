@@ -1,33 +1,18 @@
-import {defineConfig} from "vite";
+import { defineConfig } from "vite";
 import path from "path";
 
 export default defineConfig({
-    root: path.resolve("src"),
+    root: "src",
     base: "./",
-    server: {
-        host: "127.0.0.1",
-        port: 1923
-    },
     build: {
-        target: "ES2022",
-        assetsDir: ".",
-        outDir: path.resolve(__dirname, "dist"),
+        outDir: "../dist",
         emptyOutDir: true,
-        sourcemap: true,
-        manifest: false,
-        minify: false,
-        rollupOptions: {
-            input: path.resolve(__dirname, "src/index.html"),
-            output: {
-                entryFileNames: `index.js`,
-                chunkFileNames: `[name].js`,
-                assetFileNames: `[name].[ext]`
-            }
-        }
+        target: "esnext",
     },
     resolve: {
         alias: {
-            "path": "path-browserify"
-        }
-    }
+            path: "path-browserify",
+            "@": path.resolve(__dirname, "src"),
+        },
+    },
 });
