@@ -1,0 +1,30 @@
+{
+  "name": "sh",
+  "version": "1.0.0",
+  "description": "sh.oguzhanumutlu.com",
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/OguzhanUmutlu/sh.git"
+  },
+  "keywords": [],
+  "author": "OguzhanUmutlu",
+  "license": "MIT",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/OguzhanUmutlu/sh/issues"
+  },
+  "homepage": "https://github.com/OguzhanUmutlu/sh#readme",
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "vite": "^6.3.5"
+  },
+  "dependencies": {
+    "@zenfs/core": "^2.2.3",
+    "@zenfs/dom": "^1.1.8",
+    "path-browserify": "^1.0.1"
+  }
+}

@@ -1,0 +1,222 @@
+:root {
+    --cursorColor: #F5E0DC;
+    --selectionBackground: #585B70;
+    --background: #1E1E2E;
+    --foreground: #CDD6F4;
+    --black: #45475A;
+    --red: #F38BA8;
+    --green: #A6E3A1;
+    --yellow: #F9E2AF;
+    --blue: #89B4FA;
+    --purple: #F5C2E7;
+    --cyan: #94E2D5;
+    --white: #BAC2DE;
+    --brightBlack: #585B70;
+    --brightRed: #F38BA8;
+    --brightGreen: #A6E3A1;
+    --brightYellow: #F9E2AF;
+    --brightBlue: #89B4FA;
+    --brightPurple: #F5C2E7;
+    --brightCyan: #94E2D5;
+    --brightWhite: #A6ADC8;
+
+    --tab-background: #2e2e2e;
+}
+
+@font-face {
+    font-family: Edu_NSW_ACT_Hand_Precursive;
+    src: url("Edu_NSW_ACT_Hand_Precursive.ttf");
+}
+
+body {
+    color: #c0c0c0;
+    user-select: none;
+    margin: 0;
+    overflow: hidden;
+    background-color: #717377;
+}
+
+.terminal {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    translate: -50% -50%;
+    width: calc(100% - 40px);
+    height: calc(100% - 40px);
+    min-width: 250px;
+    min-height: 250px;
+    background: var(--background);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.buttons {
+    position: absolute;
+    left: 5px;
+    top: 4px;
+    display: flex;
+}
+
+.buttons > div {
+    width: 14px;
+    height: 14px;
+    margin: 5px;
+    border-radius: 50%;
+}
+
+.red {
+    background: #ff5f57;
+}
+
+.yellow {
+    background: #febc2e;
+}
+
+.green {
+    background: #28c840;
+}
+
+.frame {
+    height: 20px;
+    width: 100%;
+    background: var(--tab-background);
+    padding: 5px;
+    text-align: center;
+}
+
+.title {
+    position: absolute;
+    left: 50%;
+    translate: -50%;
+    margin-top: -5px;
+    font-family: Edu_NSW_ACT_Hand_Precursive, serif;
+    font-size: 16px;
+    width: 50%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.container {
+    user-select: text;
+    font-family: monospace, serif !important;
+    font-size: 14px;
+    width: 100%;
+    height: calc(100% - 30px);
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.text {
+    display: inline-block;
+}
+
+.text:empty {
+    width: 0;
+}
+
+.newline {
+    height: 0;
+    display: inline;
+}
+
+.container > .line > .char {
+    user-select: text;
+}
+
+.cursor {
+    position: absolute;
+    display: inline-block;
+    margin-top: -3px;
+    translate: 0 4px;
+    width: 1px;
+    height: 16px;
+    background: var(--cursorColor);
+}
+
+.cursor-can-write {
+    background: #c0c0c0;
+}
+
+.flickering {
+    animation-name: flickering;
+    animation-iteration-count: infinite;
+    animation-duration: .5s;
+}
+
+@keyframes flickering {
+    0% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0;
+    }
+    100% {
+        opacity: 1;
+    }
+}
+
+.blink {
+    animation: blink-animation 1s steps(2, start) infinite;
+}
+
+.rapid-blink {
+    animation: blink-animation 0.5s steps(2, start) infinite;
+}
+
+@keyframes blink-animation {
+    to {
+        visibility: hidden;
+    }
+}
+
+::-webkit-scrollbar {
+    width: 10px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #777;
+}
+
+::selection {
+    background: var(--selectionBackground);
+    color: white;
+}
+
+.bold {
+    font-weight: bold;
+}
+
+.italic {
+    font-style: italic;
+}
+
+.hidden {
+    opacity: 0;
+}
+
+.dim {
+    opacity: 0.5;
+}
+
+.underline {
+    text-decoration: underline;
+}
+
+.strikethrough {
+    text-decoration: line-through;
+}
+
+.underline.strikethrough {
+    text-decoration: underline line-through;
+}
