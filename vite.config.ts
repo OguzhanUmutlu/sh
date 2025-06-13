@@ -15,7 +15,7 @@ export default defineConfig({
         emptyOutDir: true,
         sourcemap: false,
         manifest: false,
-        minify: "esbuild",
+        minify: false,
         rollupOptions: {
             input: path.resolve(__dirname, "src/index.html"),
             output: {
