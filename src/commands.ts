@@ -280,7 +280,7 @@ export const Commands: Record<string, CommandDefinition> = {
         }
     },
     github: {
-        description: "opens the source code repository on GitHub", async run(_, io) {
+        description: "opens the source code repository on GitHub", async run() {
             open("https://github.com/OguzhanUmutlu/sh");
             return 0;
         }
@@ -459,6 +459,15 @@ export const Commands: Record<string, CommandDefinition> = {
             }
             await p;
 
+            return 0;
+        }
+    },
+    exit: {
+        description: "exit the shell", async run(_, io) {
+            io.stdout.write("Exiting...\n");
+            io.stdin.open();
+            (<BaseReader>io.stdin).cb = () => close();
+            await new Promise(() => null);
             return 0;
         }
     }
