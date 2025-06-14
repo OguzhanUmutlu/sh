@@ -1,12 +1,39 @@
-import {ansi256ToRgb} from "./utils";
-import {getTheme, setTheme} from "./theme";
+import {ansi256ToRgb} from "@/utils";
+// @ts-ignore
+import {schemes, themes} from "@/theme.json";
 
 type Div = HTMLDivElement;
 type Canvas = HTMLCanvasElement;
-const container = document.querySelector<Div>(".container");
-const terminal = document.querySelector<Canvas>(".container > canvas");
-const ctx = terminal.getContext("2d");
+export const container = document.querySelector<Div>(".container");
+export const canvas = document.querySelector<Canvas>(".container > canvas");
+const ctx = canvas.getContext("2d");
 const title = document.querySelector<Div>(".terminal > .frame > .title");
+
+export const Themes = themes.map((i: { name: string }) => i.name);
+let renderBlock = false;
+
+export function setRenderBlock(block: boolean) {
+    if (renderBlock === block) return;
+    renderBlock = block;
+    if (renderBlock) {
+        ctx.restore();
+        const bound = container.getBoundingClientRect();
+        canvas.width = bound.width;
+        canvas.height = bound.height;
+    } else resize();
+}
+
+let curTheme: any;
+
+export function setTheme(name: string) {
+    const theme = themes.find(i => i.name === name);
+    const scheme = schemes.find(i => i.name === name);
+    if (!theme || !scheme) return false;
+    const root = document.documentElement.style;
+    for (const key in theme) root.setProperty(`--${key}`, theme[key]);
+    curTheme = {theme, scheme};
+    return true;
+}
 
 setTheme("Catppuccin Mocha");
 
@@ -88,7 +115,7 @@ export function scrollToBottom() {
 }
 
 function handleVar(v: string) {
-    if (v.startsWith("var(--")) return getTheme().theme[v.slice(6, -1)];
+    if (v.startsWith("var(--")) return curTheme.theme[v.slice(6, -1)];
     return v;
 }
 
@@ -407,7 +434,9 @@ function renderStyledText(text: string, style: RenderStyle, pos: RenderPosition)
 }
 
 function render() {
-    ctx.clearRect(0, 0, terminal.width, terminal.height);
+    requestAnimationFrame(render);
+    if (renderBlock) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
     scrollYRender += (scrollY - scrollYRender) * 0.1;
     metrics = ctx.measureText("M");
     let pos: RenderPosition = {line: 0, column: 0};
@@ -465,8 +494,6 @@ function render() {
     /*ctx.fillStyle = "white";
     const scale = getScale();
     ctx.fillRect(terminal.width / scale, 100 * scale, 100, terminal.height);*/
-
-    requestAnimationFrame(render);
 }
 
 function reprocess() {
@@ -496,14 +523,21 @@ function getScale() {
     return (window.devicePixelRatio || 1) * 1.7;
 }
 
-function resize() {
-    ctx.restore();
+export function resize() {
     const bound = container.getBoundingClientRect();
+    if (renderBlock) {
+        canvas.width = bound.width;
+        canvas.height = bound.height;
+        canvas.style.width = bound.width + "px";
+        canvas.style.height = bound.height + "px";
+        return;
+    }
+    ctx.restore();
     const scale = getScale();
-    terminal.width = bound.width * scale;
-    terminal.height = bound.height * scale;
-    terminal.style.width = bound.width + "px";
-    terminal.style.height = bound.height + "px";
+    canvas.width = bound.width * scale;
+    canvas.height = bound.height * scale;
+    canvas.style.width = bound.width + "px";
+    canvas.style.height = bound.height + "px";
     ctx.imageSmoothingEnabled = false;
     ctx.save();
     ctx.font = "16px monospace";
@@ -516,4 +550,9 @@ function resize() {
 resize();
 render();
 addEventListener("resize", () => resize());
-terminal.addEventListener("wheel", e => scrollY += e.deltaY * 0.3);
+canvas.addEventListener("wheel", e => scrollY += e.deltaY * 0.3);
+canvas.addEventListener("click", () => {
+    if (innerWidth < innerHeight) {
+
+    }
+});

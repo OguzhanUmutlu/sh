@@ -1,6 +1,6 @@
-import {StringTokenValue, Token, tokenize} from "./tokenizer";
-import {defaultStderr, FileReader, FileWriter, IO, baseStdin, Reader, Writer} from "./stream";
-import {Commands} from "./commands";
+import {StringTokenValue, Token, tokenize} from "@/tokenizer";
+import {baseStdin, defaultStderr, FileReader, FileWriter, IO, Reader, Writer} from "@/stream";
+import {Commands} from "@/commands";
 import {fs} from "@zenfs/core";
 import path from "path";
 
@@ -26,6 +26,8 @@ export function P(file: string) {
     return file.startsWith("/") ? file : path.join(cwdVal, file);
 }
 
+export const Aliases: Record<string, string> = {};
+
 async function runCommandSingle(label: string, args: string[], io: IO) {
     if (label.startsWith("/") || label.startsWith("./") || label.startsWith("../")) {
         label = P(label);
@@ -46,6 +48,8 @@ async function runCommandSingle(label: string, args: string[], io: IO) {
         await runBashFile(label, io);
         return 0;
     }
+    const params = {};
+    if (label in Aliases) label = Aliases[label];
     const cmd = Commands[label];
     if (cmd) {
         if (args.length > 0) {
@@ -65,7 +69,7 @@ async function runCommandSingle(label: string, args: string[], io: IO) {
                 }
 
                 let arg = argO;
-                if (arg[0] === "-") {
+                if (arg[0] === "-" && arg[1] !== "-") {
                     for (let char of arg.slice(1)) {
                         if (!cmd.shortParams || !cmd.shortParams[char]) {
                             io.stderr.write(`${label}: unknown option '${argO}'\n`);
@@ -76,19 +80,25 @@ async function runCommandSingle(label: string, args: string[], io: IO) {
                             io.stderr.write(`${label}: duplicate option '${argO}'\n`);
                             return 1;
                         }
-                        args[char] = true;
+                        params[char] = true;
                     }
                     args.splice(i, 1);
                     continue;
                 }
                 if (cmd.namedParams && arg.startsWith("--")) {
                     arg = arg.slice(2);
+                    let value: true | string = true;
+                    if (arg.includes("=")) {
+                        const parts = arg.split("=");
+                        arg = parts[0];
+                        value = parts.slice(1).join("=");
+                    }
                     if (arg in cmd.namedParams) {
                         if (arg in args) {
                             io.stderr.write(`${label}: duplicate option '${argO}'\n`);
                             return 1;
                         }
-                        args[arg] = true;
+                        params[arg] = value;
                         args.splice(i, 1);
                         continue;
                     }
@@ -96,8 +106,8 @@ async function runCommandSingle(label: string, args: string[], io: IO) {
                 i++;
             }
         }
-        // @ts-ignore
-        return await cmd.run(args, io);
+
+        return await cmd.run(args, params, io);
     }
     io.stderr.write(label + ": command not found\n");
     return 1;
@@ -117,19 +127,11 @@ async function flattenStringToken(value: StringTokenValue): Promise<string> {
     return text;
 }
 
-async function runCommandFromTokens(tokens: Token[], io = new IO(), signal: AbortSignal = null): Promise<void> {
+async function runCommandFromTokens(tokens: Token[], io = new IO()): Promise<void> {
+    console.log(tokens);
     let currentCmdTokens: Token[] = [];
     let lastExitCode = 0;
     let lastPipeValue: string | null = null;
-
-    if (signal) {
-        if (signal.aborted) throw new Error("Aborted");
-
-        const controller = new AbortController();
-        signal.addEventListener("abort", () => {
-            controller.abort();
-        });
-    }
 
     async function runCurrentCommand(extraArgs: string[] = [], shouldCapture: boolean = false): Promise<{
         exitCode: number;
@@ -262,8 +264,16 @@ async function runCommandFromTokens(tokens: Token[], io = new IO(), signal: Abor
 }
 
 export function runCommand(command: string, io = new IO()) {
-    const abort = new AbortController();
-    return {abort: () => abort.abort(), wait: () => runCommandFromTokens(tokenize(command), io, abort.signal)};
+    const prom = runCommandFromTokens(tokenize(command), io);
+    const inst = {
+        abort: () => {
+            for (const cb of io.stdin.cb) cb("\x1b{c}c")
+        }, wait: () => prom, exitCode: -1
+    };
+    prom.then(() => {
+        inst.exitCode = 0;
+    });
+    return inst;
 }
 
 export async function runBashFile(file: string, io = new IO()): Promise<void> {

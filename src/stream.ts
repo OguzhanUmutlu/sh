@@ -1,6 +1,6 @@
 import {fs} from "@zenfs/core";
-import {FG, print} from "./renderer";
-import {P} from "./command";
+import {FG, print} from "@/renderer";
+import {P} from "@/command";
 import {openStdin} from "@/main";
 
 export class Writer {
@@ -27,34 +27,16 @@ export interface Reader {
     end(): void;
 }
 
-export function handleStdin(stdin: Reader, cb: (input: string, close: () => void) => void) {
-    let res: (v: unknown) => void;
-    const promise = new Promise(r => res = r);
-
-    function close() {
-        clearInterval(int);
-        stdin.end();
-        res(0);
-    }
-
-    const int = setInterval(() => {
-        const read = stdin.read();
-        cb(read, close);
-    });
-
-    return promise;
-}
-
-export class BaseReader implements Reader {
+export class Reader {
     buffer = "";
     private closer: (() => void) | null = null;
-    cb: ((input: string) => void) | null = null;
+    cb: ((input: string) => void)[] = [];
 
     open() {
         if (this.closer) return;
         this.closer = openStdin(i => {
             this.buffer += i;
-            if (this.cb) this.cb(i);
+            for (const cb of this.cb) if (this.closer) cb(i);
         });
     };
 
@@ -83,6 +65,24 @@ export class BaseReader implements Reader {
         return allContent;
     };
 
+    async handle(cb: (input: string, close: () => void) => void) {
+        this.open();
+
+        let res: (v: unknown) => void;
+        const promise = new Promise(r => res = r);
+        this.cb.push(input => cb(input, () => {
+            this.end();
+            res(null);
+        }));
+        await promise;
+    };
+
+    async term() {
+        await this.handle((input, close) => {
+            if (input === "\x1b{c}c") close();
+        });
+    };
+
     end() {
         if (this.closer) {
             this.closer();
@@ -91,11 +91,12 @@ export class BaseReader implements Reader {
     };
 }
 
-export class FileReader implements Reader {
+export class FileReader extends Reader {
     private readonly content: string;
     private index = 0;
 
     constructor(private path: string) {
+        super();
         this.content = fs.readFileSync(P(path), "utf8");
     };
 
@@ -131,7 +132,7 @@ export class FileReader implements Reader {
 
 export const defaultStdout: Writer = new Writer((data: string) => print(data), () => void 0);
 export const defaultStderr: Writer = new Writer((data: string) => print(FG.red + data + "\x1b[0m"), () => void 0);
-export const baseStdin: Reader = new BaseReader();
+export const baseStdin = new Reader();
 
 export class IO {
     constructor(public stdin = baseStdin, public stdout = defaultStdout, public stderr = defaultStderr) {

@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "description": "sh.oguzhanumutlu.com",
   "scripts": {
-    "build": "vite build",
-    "dev": "vite"
+    "dev": "vite",
+    "build": "vite build"
   },
   "repository": {
     "type": "git",
@@ -24,9 +24,12 @@
     "vite": "^6.3.5"
   },
   "dependencies": {
+    "@types/figlet": "^1.7.0",
     "@zenfs/core": "2.2.0",
     "@zenfs/dom": "^1.1.7",
     "buffer": "^6.0.3",
+    "cmatrix": "^0.5.1",
+    "figlet": "^1.8.1",
     "isomorphic-git": "^1.30.2",
     "path-browserify": "^1.0.1"
   }

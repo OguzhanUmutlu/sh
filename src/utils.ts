@@ -24,3 +24,9 @@ export function ansi256ToRgb(code: number) {
 export function wait(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
+
+export function pickPromise<T>(promises: Promise<T>[]): Promise<[T, number]> {
+    return new Promise((resolve, reject) => {
+        promises.forEach((p, i) => p.then(v => resolve([v, i])).catch(reject));
+    });
+}
