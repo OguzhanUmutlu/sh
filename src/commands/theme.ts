@@ -8,7 +8,7 @@ export default <CommandDefinition>{
         if (params.list) {
             io.stdout.write("Available themes:\n");
             for (const t of Themes) {
-                io.stdout.write(`  theme "${t}"\n`);
+                io.stdout.write(`  theme ${t}\n`);
             }
             return 0;
         }
@@ -18,7 +18,7 @@ export default <CommandDefinition>{
             return 1;
         }
 
-        const theme = args[0];
+        const theme = args.join(" ");
 
         if (!setTheme(theme)) {
             io.stderr.write(`theme: '${theme}' is not a valid theme\n`);
