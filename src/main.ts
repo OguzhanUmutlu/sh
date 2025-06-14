@@ -224,7 +224,7 @@ const input = document.querySelector("input");
 canvas.addEventListener("click", () => {
     if (innerWidth < innerHeight) input.focus();
 });
-input.addEventListener("keydown", e => {
-    onKeyDown(e).then(r => r);
+input.addEventListener("input", e => {
+    terminalInput(e.target.value).then(r => r);
     e.target.value = "";
 });
