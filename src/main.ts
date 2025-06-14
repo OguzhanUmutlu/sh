@@ -196,7 +196,7 @@ async function terminalInput(input: string, e: KeyboardEvent) {
     curIndex++;
 }
 
-addEventListener("keydown", async e => {
+async function onKeyDown(e: KeyboardEvent) {
     let key = e.key;
 
     if (key.length !== 1 && !(key in Shortcuts)) return;
@@ -216,13 +216,15 @@ addEventListener("keydown", async e => {
 
     if (replOn) await terminalInput(key, e);
     else for (const cb of stdin) cb(key);
-});
+}
+
+addEventListener("keydown", onKeyDown);
 
 const input = document.querySelector("input");
 canvas.addEventListener("click", () => {
     if (innerWidth < innerHeight) input.focus();
 });
-input.addEventListener("input", e => {
-    terminalInput(e.target.value).then(r => r);
+input.addEventListener("keydown", e => {
+    onKeyDown(e).then(r => r);
     e.target.value = "";
 });
