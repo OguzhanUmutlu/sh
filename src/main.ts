@@ -224,7 +224,17 @@ const input = document.querySelector("input");
 canvas.addEventListener("click", () => {
     if (innerWidth < innerHeight) input.focus();
 });
-input.addEventListener("input", e => {
-    terminalInput(e.target.value).then(r => r);
-    e.target.value = "";
+input.addEventListener("input", async e => {
+    if (!e.target.value) {
+        await onKeyDown(new KeyboardEvent("keydown", {
+            key: "Enter",
+            ctrlKey: false,
+            altKey: false,
+            shiftKey: false,
+            metaKey: false
+        }));
+        return;
+    }
+    terminalInput(e.target.value.slice(1)).then(r => r);
+    e.target.value = " ";
 });
