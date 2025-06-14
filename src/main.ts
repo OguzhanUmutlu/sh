@@ -124,22 +124,22 @@ const Shortcuts = {
     },
     KeyLeft() {
         for (const cb of stdin) cb("\x1b[1D");
-        if (stdinOn) return;
-        if (!allowInput || curIndex <= 0) return;
+        if (stdin.length) return;
+        if (!stdinOn || !allowInput || curIndex <= 0) return;
         print("\x1b[1D");
         curIndex--;
     },
     KeyRight() {
         for (const cb of stdin) cb("\x1b[1C");
-        if (stdinOn) return;
-        if (!allowInput || curIndex >= commandText.length) return;
+        if (stdin.length) return;
+        if (!stdinOn || !allowInput || curIndex >= commandText.length) return;
         print("\x1b[1C");
         curIndex++;
     },
     async KeyUp() {
         for (const cb of stdin) cb("\x1b[1A");
-        if (stdinOn) return;
-        if (!allowInput || historyIndex === 0) return;
+        if (stdin.length) return;
+        if (!stdinOn || !allowInput || historyIndex === 0) return;
         historyIndex--;
         print("\x1b[2K");
         await printPrefix();
@@ -149,8 +149,8 @@ const Shortcuts = {
     },
     async KeyDown() {
         for (const cb of stdin) cb("\x1b[1B");
-        if (stdinOn) return;
-        if (!allowInput || historyIndex === history.length - 1) return;
+        if (stdin.length) return;
+        if (!stdinOn || !allowInput || historyIndex === history.length - 1) return;
         historyIndex++;
         print("\x1b[2K");
         await printPrefix();
