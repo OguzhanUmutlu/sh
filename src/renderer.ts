@@ -551,8 +551,3 @@ resize();
 render();
 addEventListener("resize", () => resize());
 canvas.addEventListener("wheel", e => scrollY += e.deltaY * 0.3);
-canvas.addEventListener("click", () => {
-    if (innerWidth < innerHeight) {
-
-    }
-});

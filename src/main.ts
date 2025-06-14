@@ -1,4 +1,4 @@
-import {FG, print, S, scrollToBottom} from "@/renderer";
+import {canvas, FG, print, S, scrollToBottom} from "@/renderer";
 import {configureSingle, fs} from "@zenfs/core";
 import {IndexedDB} from '@zenfs/dom';
 import {runBashFile, runCommand, variables} from "@/command";
@@ -216,4 +216,13 @@ addEventListener("keydown", async e => {
 
     if (replOn) await terminalInput(key, e);
     else for (const cb of stdin) cb(key);
+});
+
+const input = document.querySelector("input");
+canvas.addEventListener("click", () => {
+    if (innerWidth < innerHeight) input.focus();
+});
+input.addEventListener("input", e => {
+    terminalInput(e.target.value).then(r => r);
+    e.target.value = "";
 });
