@@ -227,7 +227,7 @@ canvas.addEventListener("click", () => {
 input.addEventListener("input", async e => {
     if (!e.target.value) {
         await onKeyDown(new KeyboardEvent("keydown", {
-            key: "Enter",
+            key: "Backspace",
             ctrlKey: false,
             altKey: false,
             shiftKey: false,
