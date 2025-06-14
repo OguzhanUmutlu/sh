@@ -20,3 +20,7 @@ export function ansi256ToRgb(code: number) {
     const gray = 8 + (code - 232) * 10;
     return [gray, gray, gray];
 }
+
+export function wait(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}

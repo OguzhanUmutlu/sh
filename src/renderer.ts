@@ -1,7 +1,6 @@
 import {ansi256ToRgb} from "./utils";
 import {getTheme, setTheme} from "./theme";
 
-type Span = HTMLSpanElement;
 type Div = HTMLDivElement;
 type Canvas = HTMLCanvasElement;
 const container = document.querySelector<Div>(".container");
@@ -283,10 +282,10 @@ function processPart(part: string, cursorStack: { col: number, line: number }[] 
                 bind.content = "";
                 cursor.index = 0;
             }
-            while (binds[cursor.bind + 1] && !("content" in binds[cursor.bind + 1])) {
+            while (binds[cursor.bind + 1] && "content" in binds[cursor.bind + 1]) {
                 binds.splice(cursor.bind + 1, 1);
             }
-            while (binds[cursor.bind - 1] && !("content" in binds[cursor.bind - 1])) {
+            while (binds[cursor.bind - 1] && "content" in binds[cursor.bind - 1]) {
                 binds.splice(cursor.bind - 1, 1);
                 cursor.bind--;
             }

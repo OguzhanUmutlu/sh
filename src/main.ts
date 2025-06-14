@@ -3,7 +3,9 @@ import {configureSingle, fs} from "@zenfs/core";
 import {IndexedDB} from '@zenfs/dom';
 import {runBashFile, runCommand, variables} from "./command";
 import {setTheme} from "./theme";
+import {Buffer} from 'buffer'
 
+window.Buffer = Buffer;
 await configureSingle({backend: IndexedDB});
 
 setTheme("Catppuccin Mocha");
@@ -53,6 +55,22 @@ if (isNaN(historyIndex)) {
     historyIndex = history.length - 1;
 }
 
+export const stdin = [];
+
+export function openStdin(cb: (input: string) => void) {
+    stdin.push(cb);
+    stdinOn = true;
+    return () => {
+        const index = stdin.indexOf(cb);
+        if (index !== -1) stdin.splice(index, 1);
+    };
+}
+
+export function closeStdin() {
+    stdinOn = false;
+    stdin.length = 0;
+}
+
 const Shortcuts = {
     "CTRL+V"() {
     },
@@ -62,6 +80,7 @@ const Shortcuts = {
         await printPrefix();
     },
     async Enter() {
+        for (const cb of stdin) cb("\n");
         if (!stdinOn || !allowInput) return;
         print("\n");
         if (!commandText.trim()) return await printPrefix();
@@ -84,17 +103,18 @@ const Shortcuts = {
         await printPrefix();
         allowInput = true;
         stdinOn = true;
+        stdin.length = 0;
     },
     Backspace() {
-        if (!stdinOn) return;
-        if (!allowInput) return print("\b");
-        if (curIndex <= 0) return;
+        for (const cb of stdin) cb("\b");
+        if (!stdinOn || !allowInput || curIndex <= 0) return;
         print("\b");
         curIndex--;
         commandText = commandText.slice(0, curIndex) + commandText.slice(curIndex + 1);
         if (historyIndex === history.length - 1) history[historyIndex] = commandText;
     },
     Delete() {
+        for (const cb of stdin) cb("\x1b[1C\b");
         if (!stdinOn) return;
         if (!allowInput) return print("\x1b[1C\b");
         if (curIndex >= commandText.length) return;
@@ -103,26 +123,38 @@ const Shortcuts = {
         if (historyIndex === history.length - 1) history[historyIndex] = commandText;
     },
     KeyLeft() {
-        if (!stdinOn || !allowInput || curIndex <= 0) return;
+        for (const cb of stdin) cb("\x1b[1D");
+        if (stdinOn) return;
+        if (!allowInput || curIndex <= 0) return;
         print("\x1b[1D");
         curIndex--;
     },
     KeyRight() {
-        if (!stdinOn || !allowInput || curIndex >= commandText.length) return;
+        for (const cb of stdin) cb("\x1b[1C");
+        if (stdinOn) return;
+        if (!allowInput || curIndex >= commandText.length) return;
         print("\x1b[1C");
         curIndex++;
     },
-    KeyUp() {
-        if (!stdinOn || !allowInput || historyIndex === 0) return;
+    async KeyUp() {
+        for (const cb of stdin) cb("\x1b[1A");
+        if (stdinOn) return;
+        if (!allowInput || historyIndex === 0) return;
         historyIndex--;
-        print("\x1b[2K" + history[historyIndex]);
+        print("\x1b[2K");
+        await printPrefix();
+        print(history[historyIndex]);
         curIndex = history[historyIndex].length;
         commandText = history[historyIndex];
     },
-    KeyDown() {
-        if (!stdinOn || !allowInput || historyIndex === history.length - 1) return;
+    async KeyDown() {
+        for (const cb of stdin) cb("\x1b[1B");
+        if (stdinOn) return;
+        if (!allowInput || historyIndex === history.length - 1) return;
         historyIndex++;
-        print("\x1b[2K" + history[historyIndex]);
+        print("\x1b[2K");
+        await printPrefix();
+        print(history[historyIndex]);
         curIndex = history[historyIndex].length;
         commandText = history[historyIndex];
     },
@@ -148,8 +180,9 @@ addEventListener("keydown", async e => {
             return;
         }
 
-        print(e.key);
+        for (const cb of stdin) cb(e.key);
         if (!allowInput) return;
+        print(e.key);
         commandText = commandText.slice(0, curIndex) + e.key + commandText.slice(curIndex);
         if (historyIndex === history.length - 1) history[historyIndex] = commandText;
         curIndex++;

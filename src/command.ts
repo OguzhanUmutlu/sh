@@ -1,5 +1,5 @@
 import {StringTokenValue, Token, tokenize} from "./tokenizer";
-import {defaultStderr, FileReader, FileWriter, IO, nullReader, Reader, Writer} from "./stream";
+import {defaultStderr, FileReader, FileWriter, IO, baseStdin, Reader, Writer} from "./stream";
 import {Commands} from "./commands";
 import {fs} from "@zenfs/core";
 import path from "path";
@@ -109,7 +109,7 @@ async function flattenStringToken(value: StringTokenValue): Promise<string> {
         if (typeof part === "string") text += part;
         else if (Array.isArray(part)) {
             const capturedOutput: string[] = [];
-            await runCommandFromTokens(part, new IO(nullReader, new Writer(s => capturedOutput.push(s), () => void 0), defaultStderr));
+            await runCommandFromTokens(part, new IO(baseStdin, new Writer(s => capturedOutput.push(s), () => void 0), defaultStderr));
             text += capturedOutput.join("").trim();
         } else if (part.type === "var") text += variables[part.value] ?? "";
         else if (part.type === "word") text += part.value;
@@ -201,7 +201,7 @@ async function runCommandFromTokens(tokens: Token[], io = new IO(), signal: Abor
 
         const finalStdout = shouldCapture ? capturingStdout : stdoutRedirect;
 
-        const runIO = new IO(inputRedirect ?? nullReader, finalStdout, stderrRedirect);
+        const runIO = new IO(inputRedirect ?? baseStdin, finalStdout, stderrRedirect);
 
         const exitCode = await runCommandSingle(label, args, runIO);
         const output = capturedOutput.join("");

@@ -1,5 +1,6 @@
-import { defineConfig } from "vite";
+import {defineConfig} from "vite";
 import path from "path";
+import inject from "@rollup/plugin-inject"
 
 export default defineConfig({
     root: "src",
@@ -12,7 +13,16 @@ export default defineConfig({
     resolve: {
         alias: {
             path: "path-browserify",
+            buffer: "buffer",
             "@": path.resolve(__dirname, "src"),
         },
     },
+    plugins: [
+        inject({
+            Buffer: ["buffer", "Buffer"]
+        })
+    ],
+    define: {
+        global: 'globalThis'
+    }
 });
