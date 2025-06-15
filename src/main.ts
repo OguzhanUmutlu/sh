@@ -105,7 +105,7 @@ export function extractModifiers(input: string) {
     };
 }
 
-async function terminalInput(input: string, e: KeyboardEvent) {
+async function terminalInput(input: string, e: Event) {
     const mod = extractModifiers(input);
     const {ctrl, alt, shift, meta, hasModifier} = mod;
     input = mod.input;
@@ -118,7 +118,12 @@ async function terminalInput(input: string, e: KeyboardEvent) {
         if (historyIndex !== 0 && history[historyIndex - 1] === commandText.trim()) {
             history[historyIndex] = "";
         } else {
+            const isBack = historyIndex !== history.length - 1;
             history.length = historyIndex + 1;
+            if (isBack) {
+                history.push(commandText);
+                historyIndex++;
+            }
             history.push("");
             historyIndex++;
             if (fs.existsSync("home/.history") && fs.statSync("home/.history").isFile()) {
@@ -174,13 +179,13 @@ async function terminalInput(input: string, e: KeyboardEvent) {
     }
 
     if (hasModifier) {
-        if (input === "l") {
+        if (ctrl && input === "l") {
             print("\x1b[2J");
             await printPrefix();
             e.preventDefault();
             return;
         }
-        if (input === "c") {
+        if (ctrl && input === "c") {
             print("\n");
             commandText = "";
             curIndex = 0;
@@ -193,7 +198,7 @@ async function terminalInput(input: string, e: KeyboardEvent) {
     print(input);
     commandText = commandText.slice(0, curIndex) + input + commandText.slice(curIndex);
     if (historyIndex === history.length - 1) history[historyIndex] = commandText;
-    curIndex++;
+    curIndex += input.length;
 }
 
 async function onKeyDown(e: KeyboardEvent) {
@@ -225,7 +230,8 @@ canvas.addEventListener("click", () => {
     if (innerWidth < innerHeight) input.focus();
 });
 input.addEventListener("input", async e => {
-    if (!e.target.value) {
+    const val = input.value;
+    if (!val) {
         await onKeyDown(new KeyboardEvent("keydown", {
             key: "Backspace",
             ctrlKey: false,
@@ -235,6 +241,6 @@ input.addEventListener("input", async e => {
         }));
         return;
     }
-    terminalInput(e.target.value.slice(1)).then(r => r);
-    e.target.value = " ";
+    terminalInput(val.slice(1), e).then(r => r);
+    input.value = " ";
 });
