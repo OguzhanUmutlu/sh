@@ -1,104 +1,184 @@
 import {CommandDefinition} from "@/commands";
 import {P} from "@/command";
 import {fs} from "@zenfs/core";
-import {print} from "@/renderer";
+import {CTRL, CTRL_f, FG, getScreenSize, restoreState, S, saveState} from "@/renderer";
+import path from "path";
 
 export default <CommandDefinition>{
-    description: "text editor", async run(args, params, io) {
-        io.stdout.write("We're no strangers to love\n" +
-            "You know the rules and so do I\n" +
-            "A full commitment's what I'm thinkin' of\n" +
-            "You wouldn't get this from any other guy\n" +
-            "I just wanna tell you how I'm feeling\n" +
-            "Gotta make you understand\n" +
-            "Never gonna give you up, never gonna let you down\n" +
-            "Never gonna run around and desert you\n" +
-            "Never gonna make you cry, never gonna say goodbye\n" +
-            "Never gonna tell a lie and hurt you\n" +
-            "We've known each other for so long\n" +
-            "Your heart's been aching, but you're too shy to say it\n" +
-            "Inside, we both know what's been going on\n" +
-            "We know the game and we're gonna play it\n" +
-            "And if you ask me how I'm feeling\n" +
-            "Don't tell me you're too blind to see\n" +
-            "Never gonna give you up, never gonna let you down\n" +
-            "Never gonna run around and desert you\n" +
-            "Never gonna make you cry, never gonna say goodbye\n" +
-            "Never gonna tell a lie and hurt you\n" +
-            "Never gonna give you up, never gonna let you down\n" +
-            "Never gonna run around and desert you\n" +
-            "Never gonna make you cry, never gonna say goodbye\n" +
-            "Never gonna tell a lie and hurt you\n" +
-            "We've known each other for so long\n" +
-            "Your heart's been aching, but you're too shy to say it\n" +
-            "Inside, we both know what's been going on\n" +
-            "We know the game and we're gonna play it\n" +
-            "I just wanna tell you how I'm feeling\n" +
-            "Gotta make you understand\n" +
-            "Never gonna give you up, never gonna let you down\n" +
-            "Never gonna run around and desert you\n" +
-            "Never gonna make you cry, never gonna say goodbye\n" +
-            "Never gonna tell a lie and hurt you\n" +
-            "Never gonna give you up, never gonna let you down\n" +
-            "Never gonna run around and desert you\n" +
-            "Never gonna make you cry, never gonna say goodbye\n" +
-            "Never gonna tell a lie and hurt you\n" +
-            "Never gonna give you up, never gonna let you down\n" +
-            "Never gonna run around and desert you\n" +
-            "Never gonna make you cry, never gonna say goodbye\n" +
-            "Never gonna tell a lie and hurt you\n");
-        return;
+    description: "text editor", async run(args, _, io) {
         if (args.length === 0) {
-            io.stderr.write("vim: missing file argument\n");
+            io.stderr.write("vim: no file specified\n");
             return 1;
         }
 
-        const file = P(args[0]);
-        let content = "";
-        if (fs.existsSync(file)) {
-            content = fs.readFileSync(file, "utf8");
+        const filePath = P(args[0]);
+
+        if (!fs.existsSync(filePath)) {
+            if (!fs.existsSync(path.dirname(filePath))) {
+                io.stderr.write(`vim: cannot access '${filePath}': no such file or directory\n`);
+                return 1;
+            }
+            fs.writeFileSync(filePath, "");
+        } else if (!fs.statSync(filePath).isFile()) {
+            io.stderr.write(`vim: cannot access '${filePath}': is directory\n`);
+            return 1;
         }
 
-        io.stdout.write(`Editing ${file}...\n`);
-        io.stdout.write(content + "\n");
+        let savedCode = fs.readFileSync(filePath, "utf8");
+        let code = savedCode;
 
-        io.stdin.open();
+        let cursorIndex = 0;
+        let cursorColumn = 0;
+        let cursorLine = 0;
+        let scrollOffset = 0;
 
-        let cmd = null;
+        saveState();
 
-        io.stdin.open();
+        function updateCursor() {
+            io.stdout.write(CTRL.cursorTo(cursorLine + scrollOffset, cursorColumn));
+        }
 
-        let res: (v?: unknown) => void;
-        const p = new Promise(r => res = r);
-        io.stdin.cb = function (input: string) {
-            if (!input) return;
-
-            if (input === ":") {
-                cmd = "";
-                return;
+        function onResize() {
+            const {width, height} = getScreenSize();
+            io.stdout.write(CTRL.clear);
+            const lines = code.split("\n");
+            for (let i = 0; i < height - 1; i++) {
+                const li = scrollOffset + i;
+                const line = li < lines.length ? lines[li] : `${FG.blue}~${S.reset}`;
+                io.stdout.write(line + "\n");
             }
+            if (cmd) return io.stdout.write(cmd);
+            switch (mode) {
+                case "n":
+                    io.stdout.write(" ");
+                    break;
+                case "i":
+                    io.stdout.write(`${FG.green}-- INSERT --${S.reset}`);
+                    break;
+            }
+            updateCursor();
+        }
 
-            if (cmd !== null) {
+        let mode = "n";
+        let cmd = "";
+
+        addEventListener("resize", onResize);
+        onResize();
+
+        await io.stdin.handle((input, close) => {
+            if (cmd) {
                 if (input === "\n") {
-                    for (const c of cmd) {
-                        if (c === "w") {
-                            fs.writeFileSync(file, content, "utf8");
-                            io.stdout.write(`Saved ${file}\n`);
-                        } else if (c === "q") {
-                            io.stdin.end();
-                            io.stdout.write(`Exiting vim...\n`);
-                            res();
+                    if (cmd === ":w") {
+                        fs.writeFileSync(filePath, code);
+                        io.stdout.write(`${CTRL.clearLine}${FG.green}Saved to ${filePath}${S.reset}`);
+                        updateCursor();
+                        savedCode = code;
+                    } else if (cmd === ":q") {
+                        if (savedCode !== code) {
+                            io.stdout.write(`${CTRL.clearLine}${FG.red}File has unsaved changes. Use ':w' to save or ':q!' to quit without saving.${S.reset}`);
+                            cmd = "";
+                            updateCursor();
                             return;
                         }
+                        close();
+                        return;
+                    } else if (cmd === ":q!") {
+                        close();
+                        return;
+                    } else if (cmd === ":wq") {
+                        fs.writeFileSync(filePath, code);
+                        close();
+                        return;
+                    } else {
+                        io.stdout.write(`${CTRL.clearLine}${FG.red}unknown command: ${cmd}${S.reset}`);
+                        updateCursor();
                     }
-                    cmd = null;
-                } else cmd += input;
+                    cmd = "";
+                } else if (input === CTRL.escape) {
+                    mode = "n";
+                    cmd = "";
+                    io.stdout.write(`${CTRL.clearLine}`);
+                    updateCursor();
+                } else if (input === CTRL.backspace) {
+                    if (cmd.length > 0) cmd = cmd.slice(0, -1);
+                    io.stdout.write(input);
+                    if (cmd.length === 0) {
+                        io.stdout.write(`${CTRL.clearLine}`);
+                        updateCursor();
+                    }
+                } else if (input.length === 1) {
+                    cmd += input;
+                    io.stdout.write(input);
+                }
+
                 return;
             }
+            switch (mode) {
+                case "n":
+                    if (input === "i") {
+                        mode = "i";
+                        io.stdout.write(`${CTRL.cursorTo(getScreenSize().height, 0)}${CTRL.clearLine}${FG.green}-- INSERT --${S.reset}`);
+                        updateCursor();
+                    } else if (input === ":") {
+                        cmd += input;
+                        io.stdout.write(`${CTRL.cursorTo(getScreenSize().height, 0)}${CTRL.clearLine}${S.reset}:`);
+                    }
+                    break;
+                case "i":
+                    if (input === CTRL.escape) {
+                        mode = "n";
+                        onResize();
+                    } else if (input === CTRL.backspace) {
+                        if (cursorIndex > 0) {
+                            code = code.slice(0, cursorIndex - 1) + code.slice(cursorIndex);
+                            cursorIndex--;
+                            cursorColumn--;
+                            if (cursorColumn < 0) {
+                                cursorLine--;
+                                const lines = code.split("\n");
+                                cursorColumn = lines[cursorLine].length;
+                                onResize();
+                            } else io.stdout.write("\b");
+                        }
+                    } else if (input === CTRL.delete) {
+                        if (cursorIndex < code.length) {
+                            code = code.slice(0, cursorIndex) + code.slice(cursorIndex + 1);
+                        }
+                    } else if (CTRL_f.cursorLeft(input)) {
+                        const amount = CTRL_f.cursorLeft(input);
+                        if (cursorIndex > 0) {
+                            cursorIndex -= amount;
+                            if (cursorIndex < 0) cursorIndex = 0;
+                            const lines = code.slice(0, cursorIndex).split("\n");
+                            cursorLine = lines.length - 1;
+                            cursorColumn = lines[cursorLine].length;
+                            updateCursor();
+                        }
+                    } else if (CTRL_f.cursorRight(input)) {
+                        const amount = CTRL_f.cursorRight(input);
+                        if (cursorIndex < code.length) {
+                            cursorIndex += amount;
+                            if (cursorIndex > code.length) cursorIndex = code.length;
+                            const lines = code.slice(0, cursorIndex).split("\n");
+                            cursorLine = lines.length - 1;
+                            cursorColumn = lines[cursorLine].length;
+                            updateCursor();
+                        }
+                    } else if (input.length === 1) {
+                        code = code.slice(0, cursorIndex) + input + code.slice(cursorIndex);
+                        cursorIndex++;
+                        cursorColumn++;
+                        if (input === "\n") {
+                            cursorLine++;
+                            cursorColumn = 0;
+                            onResize();
+                        } else io.stdout.write(input);
+                    }
+                    break;
+            }
+        }).wait();
 
-            print(input);
-        }
-        await p;
+        restoreState();
 
         return 0;
     }

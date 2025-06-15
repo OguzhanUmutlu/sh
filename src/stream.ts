@@ -1,5 +1,5 @@
 import {fs} from "@zenfs/core";
-import {FG, print} from "@/renderer";
+import {CTRL, FG, print, S} from "@/renderer";
 import {P} from "@/command";
 
 export class Writer {
@@ -69,7 +69,7 @@ export class Reader {
 
     term() {
         return this.handle((input, close) => {
-            if (input === "\x1b{c}c") close();
+            if (input === `${CTRL.spec("ctrl")}c`) close();
         });
     };
 }
@@ -81,9 +81,6 @@ export class FileReader extends Reader {
     constructor(path: string) {
         super();
         this.content = fs.readFileSync(P(path), "utf8");
-    };
-
-    open() {
     };
 
     readChar() {
@@ -108,13 +105,10 @@ export class FileReader extends Reader {
         this.index = endIndex + 1;
         return line;
     };
-
-    end() {
-    };
 }
 
 export const defaultStdout: Writer = new Writer((data: string) => print(data));
-export const defaultStderr: Writer = new Writer((data: string) => print(FG.red + data + "\x1b[0m"));
+export const defaultStderr: Writer = new Writer((data: string) => print(FG.red + data + S.reset));
 export const baseStdin = new Reader();
 
 export class IO {

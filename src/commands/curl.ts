@@ -27,8 +27,14 @@ export default <CommandDefinition>{
             }
 
             const data = await response.arrayBuffer();
-            if (outputFile) fs.writeFileSync(P(<string>outputFile), Buffer.from(data));
-            else io.stdout.write(Buffer.from(data).toString());
+            if (outputFile) {
+                try {
+                    fs.writeFileSync(P(<string>outputFile), Buffer.from(data));
+                } catch (e) {
+                    io.stderr.write(`curl: cannot access '${outputFile}': no such file or directory\n`);
+                    return 1;
+                }
+            } else io.stdout.write(Buffer.from(data).toString());
         } catch (e) {
             io.stderr.write(`curl: error fetching '${url}': ${e.message}\n`);
             return 1;

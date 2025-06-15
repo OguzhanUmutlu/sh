@@ -1,5 +1,5 @@
 import {CommandDefinition} from "@/commands";
-import {getScreenSize, restoreState, saveState} from "@/renderer";
+import {getScreenSize, restoreState, S, saveState} from "@/renderer";
 
 export default <CommandDefinition>{
     description: "terminal capabilities control",
@@ -11,7 +11,7 @@ export default <CommandDefinition>{
 
         switch (args[0]) {
             case "clear":
-                io.stdout.write("\x1b[2J");
+                io.stdout.write(S.reset);
                 break;
             case "lines":
                 io.stdout.write(getScreenSize().height + "\n");

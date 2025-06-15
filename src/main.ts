@@ -1,4 +1,4 @@
-import {canvas, FG, print, S} from "@/renderer";
+import {canvas, CTRL, extractModifiers, FG, print, S} from "@/renderer";
 import {configureSingle, fs} from "@zenfs/core";
 import {IndexedDB} from '@zenfs/dom';
 import {runBashFile, runCommand, variables} from "@/command";
@@ -16,11 +16,11 @@ if (!fs.existsSync("home")) {
     fs.writeFileSync("home/.history", "0");
 }
 
-const PREFIX = `${FG.green}usr${S.clear}:${FG.blue}$(pwd -f)${FG.purple}$ ${S.clear}`;
+const PREFIX = `${FG.green}usr${S.reset}:${FG.blue}$(pwd -f)${FG.purple}$ ${S.reset}`;
 
 if (!fs.existsSync("home/.bashrc")) {
-    fs.writeFileSync("home/.bashrc", `echo "${FG.cyan}Welcome to the terminal!${S.clear}"
-echo "${FG.yellow}Type 'help' to see a list of commands.${S.clear}"
+    fs.writeFileSync("home/.bashrc", `echo "${FG.cyan}Welcome to the terminal!${S.reset}"
+echo "${FG.yellow}Type 'help' to see a list of commands.${S.reset}"
 echo ""
 cd
 `);
@@ -54,45 +54,22 @@ if (isNaN(historyIndex)) {
 }
 
 const Shortcuts = {
-    Backspace: "\b",
-    Delete: "\x1b[1C\b",
+    Backspace: CTRL.backspace,
+    Delete: CTRL.delete,
     Enter: "\n",
-    KeyUp: "\x1b[1A",
-    KeyDown: "\x1b[1B",
-    KeyRight: "\x1b[1C",
-    KeyLeft: "\x1b[1D",
-    Home: "\x1b[Home",
-    End: "\x1b[End",
-    Escape: "\x1b[Escape",
+    KeyUp: CTRL.cursorUp(1),
+    KeyDown: CTRL.cursorDown(1),
+    KeyRight: CTRL.cursorRight(1),
+    KeyLeft: CTRL.cursorLeft(1),
+    Home: CTRL.home,
+    End: CTRL.end,
+    Escape: CTRL.escape,
 
-    ArrowUp: "\x1b[1A",
-    ArrowDown: "\x1b[1B",
-    ArrowRight: "\x1b[1C",
-    ArrowLeft: "\x1b[1D"
+    ArrowUp: CTRL.cursorUp(1),
+    ArrowDown: CTRL.cursorDown(1),
+    ArrowRight: CTRL.cursorRight(1),
+    ArrowLeft: CTRL.cursorLeft(1)
 };
-
-export function extractModifiers(input: string) {
-    if (/^\x1b\{[sacm]+}/.test(input)) {
-        const mod = input.match(/^\x1b\{([sacm]+)}/)?.[1] || "";
-        return {
-            ctrl: mod.includes("c"),
-            alt: mod.includes("a"),
-            shift: mod.includes("s"),
-            meta: mod.includes("m"),
-            input: input.slice(mod.length + 3),
-            hasModifier: true
-        };
-    }
-
-    return {
-        ctrl: false,
-        alt: false,
-        shift: false,
-        meta: false,
-        input,
-        hasModifier: false
-    };
-}
 
 function countCtrlLeft() {
     for (let i = curIndex - 1; i >= 0; i--) {
@@ -167,12 +144,12 @@ async function terminalInput(input: string, e: Event) {
         if (curIndex >= commandText.length) return;
         if (ctrl) {
             const len = countCtrlRight();
-            print("\x1b[" + len + "C" + "\b".repeat(len));
+            print(CTRL.cursorRight(len) + CTRL.backspace.repeat(len));
             commandText = commandText.slice(0, curIndex) + commandText.slice(curIndex + len);
             if (historyIndex === history.length - 1) history[historyIndex] = commandText;
             return;
         }
-        print("\x1b[1C\b");
+        print(input);
         commandText = commandText.slice(0, curIndex) + commandText.slice(curIndex + 1);
         if (historyIndex === history.length - 1) history[historyIndex] = commandText;
         return;
@@ -191,7 +168,7 @@ async function terminalInput(input: string, e: Event) {
         const up = input === Shortcuts.KeyUp;
         if (hasModifier || (up && historyIndex === 0) || (!up && historyIndex === history.length - 1)) return;
         historyIndex += up ? -1 : 1;
-        print("\x1b[2K");
+        print(CTRL.clearLine);
         await printPrefix();
         print(history[historyIndex]);
         curIndex = history[historyIndex].length;
@@ -201,11 +178,11 @@ async function terminalInput(input: string, e: Event) {
         if (hasModifier) return;
         if (input === Shortcuts.Home) {
             if (!curIndex) return;
-            print("\x1b[" + curIndex + "D");
+            print(CTRL.cursorLeft(curIndex));
             curIndex = 0;
         } else {
             if (curIndex >= commandText.length) return;
-            print("\x1b[" + (commandText.length - curIndex + 1) + "C");
+            print(CTRL.cursorRight(commandText.length - curIndex + 1));
             curIndex = commandText.length;
         }
         return;
@@ -213,7 +190,7 @@ async function terminalInput(input: string, e: Event) {
 
     if (hasModifier) {
         if (ctrl && input === "l") {
-            print("\x1b[2J");
+            print(CTRL.clear);
             await printPrefix();
             e.preventDefault();
             return;

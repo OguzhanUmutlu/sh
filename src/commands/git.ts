@@ -3,6 +3,7 @@ import {P} from "@/command";
 import {fs} from "@zenfs/core";
 import * as git from "isomorphic-git";
 import HttpFetch from "isomorphic-git/http/web";
+import {CTRL} from "@/renderer";
 
 export default <CommandDefinition>{
     description: "Git command interface",
@@ -38,7 +39,7 @@ export default <CommandDefinition>{
                         onProgress: (progress) => {
                             const {phase, loaded, total} = progress;
                             const percent = total ? ((loaded / total) * 100).toFixed(1) : "??";
-                            io.stdout.write(`${lastPhase === phase ? "\x1b[2K" : "\n"}  [${percent}%] ${phase}`);
+                            io.stdout.write(`${lastPhase === phase ? CTRL.clearLine : "\n"}  [${percent}%] ${phase}`);
                             lastPhase = phase;
                         }
                     });
@@ -63,7 +64,7 @@ export default <CommandDefinition>{
                         onProgress: (progress) => {
                             const {phase, loaded, total} = progress;
                             const percent = total ? ((loaded / total) * 100).toFixed(1) : "??";
-                            io.stdout.write(`${lastPhase === phase ? "\x1b[2K" : "\n"}  [${percent}%] ${phase}`);
+                            io.stdout.write(`${lastPhase === phase ? CTRL.clearLine : "\n"}  [${percent}%] ${phase}`);
                             lastPhase = phase;
                         }
                     });

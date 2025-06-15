@@ -3,6 +3,7 @@ import {baseStdin, defaultStderr, FileReader, FileWriter, IO, Reader, Writer} fr
 import {Commands} from "@/commands";
 import {fs} from "@zenfs/core";
 import path from "path";
+import {CTRL} from "@/renderer";
 
 export const variables: Record<string, string> = {};
 
@@ -133,7 +134,7 @@ async function flattenStringToken(value: StringTokenValue): Promise<string> {
         if (typeof part === "string") text += part;
         else if (Array.isArray(part)) {
             const capturedOutput: string[] = [];
-            const io = new IO(baseStdin, new Writer(s => capturedOutput.push(s), () => void 0), defaultStderr);
+            const io = new IO(baseStdin, new Writer(s => capturedOutput.push(s)), defaultStderr);
             await runCommandFromTokens(part, io);
             io.term.remove();
             text += capturedOutput.join("").trim();
@@ -161,7 +162,7 @@ async function runCommandFromTokens(tokens: Token[], io: IO) {
         let inputRedirect: Reader | null = null;
 
         const capturedOutput: string[] = [];
-        const capturingStdout = new Writer(s => capturedOutput.push(s), () => void 0);
+        const capturingStdout = new Writer(s => capturedOutput.push(s));
 
         let i = 0;
         while (i < currentCmdTokens.length) {
@@ -303,7 +304,7 @@ export function runCommand(command: string, io?: IO) {
 
     const inst = {
         abort: () => {
-            io.term.handler("\x1b{c}c");
+            io.term.handler(`${CTRL.spec("ctrl")}c`);
             if (createdIO) io.term.remove();
         }, wait: () => prom, exitCode: -1
     };
