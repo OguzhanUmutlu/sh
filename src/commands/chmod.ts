@@ -17,9 +17,13 @@ export default <CommandDefinition>{
 
         for (let fileO of files) {
             const file = P(fileO);
-            let stat: fs.Stats;
-            if (!fs.existsSync(file) || !(stat = fs.statSync(file)).isFile()) {
-                io.stderr.write(`chmod: cannot access '${fileO}': No such file or directory\n`);
+            if (!fs.existsSync(file)) {
+                io.stderr.write(`chmod: cannot access '${fileO}': no such file or directory\n`);
+                return 1;
+            }
+            const stat = fs.statSync(file);
+            if (!stat.isFile()) {
+                io.stderr.write(`chmod: cannot access '${fileO}': is a directory\n`);
                 return 1;
             }
             for (const char of mode) {

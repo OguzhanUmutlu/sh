@@ -17,7 +17,7 @@ export default <CommandDefinition>{
             mount: (matrix: unknown) => r(matrix)
         }));
 
-        await io.stdin.term();
+        await io.term.wait();
 
         mat.stop();
         setRenderBlock(false);

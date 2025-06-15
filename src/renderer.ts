@@ -110,6 +110,37 @@ let renderedHeight = 0;
 let cursorPos = {x: 0, y: 0};
 let cursorPosRender = {x: 0, y: 0};
 
+const saves = [];
+
+export function saveState() {
+    saves.push({
+        binds: [...binds],
+        cursor: {...cursor},
+        scrollY,
+        scrollYRender,
+        screenWidth,
+        screenHeight,
+        renderedHeight,
+        cursorPos: {...cursorPos},
+        cursorPosRender: {...cursorPosRender}
+    });
+}
+
+export function restoreState() {
+    if (saves.length === 0) return;
+    const state = saves.pop()!;
+    binds.length = 0;
+    binds.push(...state.binds);
+    Object.assign(cursor, state.cursor);
+    scrollY = state.scrollY;
+    scrollYRender = state.scrollYRender;
+    screenWidth = state.screenWidth;
+    screenHeight = state.screenHeight;
+    renderedHeight = state.renderedHeight;
+    cursorPos = {...state.cursorPos};
+    cursorPosRender = {...state.cursorPosRender};
+}
+
 export function scrollToBottom() {
     scrollY = Math.max(0, (renderedHeight - screenHeight) * (metrics.fontBoundingBoxAscent + 5));
 }
@@ -545,6 +576,10 @@ export function resize() {
     const m = ctx.measureText("M");
     screenWidth = Math.floor((bound.width - 20) / m.width);
     screenHeight = Math.floor((bound.height - 20) / (m.fontBoundingBoxAscent + 5));
+}
+
+export function getScreenSize() {
+    return {width: screenWidth, height: screenHeight};
 }
 
 resize();

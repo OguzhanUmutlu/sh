@@ -20,7 +20,7 @@ export default <CommandDefinition>{
             return 1;
         }
 
-        await pickPromise([io.stdin.term(), wait(time)]);
+        await pickPromise([io.term.wait(), wait(time)]);
 
         return 0;
     }

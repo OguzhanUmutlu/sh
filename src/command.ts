@@ -32,21 +32,20 @@ async function runCommandSingle(label: string, args: string[], io: IO) {
     if (label.startsWith("/") || label.startsWith("./") || label.startsWith("../")) {
         label = P(label);
         if (!fs.existsSync(label)) {
-            io.stderr.write(`${label}: No such file or directory\n`);
+            io.stderr.write(`${label}: no such file or directory\n`);
             return 1;
         }
         if (!fs.statSync(label).isFile()) {
-            io.stderr.write(`${label}: Is a directory\n`);
+            io.stderr.write(`${label}: is a directory\n`);
             return 1;
         }
         try {
             fs.accessSync(label, fs.constants.X_OK)
         } catch (e) {
-            io.stderr.write(`${label}: Permission denied\n`);
+            io.stderr.write(`${label}: permission denied\n`);
             return 1;
         }
-        await runBashFile(label, io);
-        return 0;
+        return await runBashFile(label, io);
     }
     const params = {};
     if (label in Aliases) label = Aliases[label];
@@ -70,6 +69,21 @@ async function runCommandSingle(label: string, args: string[], io: IO) {
 
                 let arg = argO;
                 if (arg[0] === "-" && arg[1] !== "-") {
+                    if (arg[2] === "=") {
+                        const val = arg.slice(3);
+                        arg = arg[1];
+                        if (!cmd.shortParams || !cmd.shortParams[arg]) {
+                            io.stderr.write(`${label}: unknown option '${argO}'\n`);
+                            return 1;
+                        }
+                        if (arg in args) {
+                            io.stderr.write(`${label}: duplicate option '${argO}'\n`);
+                            return 1;
+                        }
+                        params[cmd.shortParams[arg]] = val;
+                        args.splice(i, 1);
+                        continue;
+                    }
                     for (let char of arg.slice(1)) {
                         if (!cmd.shortParams || !cmd.shortParams[char]) {
                             io.stderr.write(`${label}: unknown option '${argO}'\n`);
@@ -109,7 +123,7 @@ async function runCommandSingle(label: string, args: string[], io: IO) {
 
         return await cmd.run(args, params, io);
     }
-    io.stderr.write(label + ": command not found\n");
+    io.stderr.write("bash: command not found: " + label + "\n");
     return 1;
 }
 
@@ -119,7 +133,9 @@ async function flattenStringToken(value: StringTokenValue): Promise<string> {
         if (typeof part === "string") text += part;
         else if (Array.isArray(part)) {
             const capturedOutput: string[] = [];
-            await runCommandFromTokens(part, new IO(baseStdin, new Writer(s => capturedOutput.push(s), () => void 0), defaultStderr));
+            const io = new IO(baseStdin, new Writer(s => capturedOutput.push(s), () => void 0), defaultStderr);
+            await runCommandFromTokens(part, io);
+            io.term.remove();
             text += capturedOutput.join("").trim();
         } else if (part.type === "var") text += variables[part.value] ?? "";
         else if (part.type === "word") text += part.value;
@@ -127,8 +143,7 @@ async function flattenStringToken(value: StringTokenValue): Promise<string> {
     return text;
 }
 
-async function runCommandFromTokens(tokens: Token[], io = new IO()): Promise<void> {
-    console.log(tokens);
+async function runCommandFromTokens(tokens: Token[], io: IO) {
     let currentCmdTokens: Token[] = [];
     let lastExitCode = 0;
     let lastPipeValue: string | null = null;
@@ -156,7 +171,8 @@ async function runCommandFromTokens(tokens: Token[], io = new IO()): Promise<voi
                 const append = token.value.append;
                 const next = currentCmdTokens[i + 1];
                 if (!next || (next.type !== "word" && next.type !== "string")) {
-                    throw new Error("Expected filename after redirection operator");
+                    io.stderr.write("bash: expected filename after '>'\n");
+                    return {exitCode: 1, output: ""};
                 }
 
                 const filename = next.type === "word" ? next.value : await flattenStringToken(next.value);
@@ -172,14 +188,15 @@ async function runCommandFromTokens(tokens: Token[], io = new IO()): Promise<voi
                 if (token.value === "<") {
                     const next = currentCmdTokens[i + 1];
                     if (!next || (next.type !== "word" && next.type !== "string")) {
-                        throw new Error("Expected filename after input redirection operator");
+                        io.stderr.write("bash: expected filename after '<'\n");
+                        return {exitCode: 1, output: ""};
                     }
-                    const filename =
-                        next.type === "word" ? next.value : await flattenStringToken(next.value);
+                    const filename = next.type === "word" ? next.value : await flattenStringToken(next.value);
                     try {
                         inputRedirect = new FileReader(filename);
                     } catch {
-                        throw new Error(`Input redirection file not found: ${filename}`);
+                        io.stderr.write(`bash: file not found: ${filename}\n`);
+                        return {exitCode: 1, output: ""};
                     }
                     i += 2;
                     continue;
@@ -204,8 +221,9 @@ async function runCommandFromTokens(tokens: Token[], io = new IO()): Promise<voi
         const finalStdout = shouldCapture ? capturingStdout : stdoutRedirect;
 
         const runIO = new IO(inputRedirect ?? baseStdin, finalStdout, stderrRedirect);
-
         const exitCode = await runCommandSingle(label, args, runIO);
+        runIO.term.remove();
+
         const output = capturedOutput.join("");
 
         if (!shouldCapture) {
@@ -261,28 +279,62 @@ async function runCommandFromTokens(tokens: Token[], io = new IO()): Promise<voi
         const extraArgs = lastPipeValue !== null ? [lastPipeValue] : [];
         await runCurrentCommand(extraArgs, false);
     }
+
+    return lastExitCode;
 }
 
-export function runCommand(command: string, io = new IO()) {
-    const prom = runCommandFromTokens(tokenize(command), io);
+export function runCommand(command: string, io?: IO) {
+    const createdIO = !io;
+    if (createdIO) io = new IO;
+    let tokens: Token[];
+    try {
+        tokens = tokenize(command);
+    } catch (e) {
+        io.stderr.write(`bash: ${e.message}\n`);
+        if (createdIO) io.term.remove();
+        return {
+            abort: () => void 0,
+            wait: () => Promise.resolve(1),
+            exitCode: 1
+        };
+    }
+
+    const prom = runCommandFromTokens(tokens, io);
+
     const inst = {
         abort: () => {
-            for (const cb of io.stdin.cb) cb("\x1b{c}c")
+            io.term.handler("\x1b{c}c");
+            if (createdIO) io.term.remove();
         }, wait: () => prom, exitCode: -1
     };
-    prom.then(() => {
-        inst.exitCode = 0;
+    prom.then(c => {
+        inst.exitCode = c;
+        if (createdIO) io.term.remove();
     });
     return inst;
 }
 
-export async function runBashFile(file: string, io = new IO()): Promise<void> {
+export async function runBashFile(file: string, io?: IO) {
+    const createdIO = !io;
+    if (createdIO) io = new IO;
     const content = fs.readFileSync(file, "utf8");
+    let lastExitCode = 0;
     for (const line of content.split("\n")) {
         const trimmedLine = line.trim();
         if (trimmedLine && !trimmedLine.startsWith("#")) {
-            const tokens = tokenize(trimmedLine);
-            await runCommandFromTokens(tokens, io);
+            let tokens: Token[];
+            try {
+                tokens = tokenize(trimmedLine);
+            } catch (e) {
+                io.stderr.write(`bash: ${file}: ${e.message}\n`);
+                return 0;
+            }
+
+            lastExitCode = await runCommandFromTokens(tokens, io);
         }
     }
+
+    if (createdIO) io.term.remove();
+
+    return lastExitCode;
 }

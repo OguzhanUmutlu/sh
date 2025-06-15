@@ -15,13 +15,13 @@ export default <CommandDefinition>{
         switch (args[0]) {
             case "clone": {
                 if (args.length < 2) {
-                    io.stderr.write("git clone: missing repository URL\n");
+                    io.stderr.write("git: missing repository URL\n");
                     return 1;
                 }
                 const repoUrl = args[1];
                 const dir = P(args[2] || repoUrl.split("/").pop().replace(/\.git$/, ""));
                 if (fs.existsSync(dir)) {
-                    io.stderr.write(`git clone: destination path '${dir}' already exists and is not an empty directory\n`);
+                    io.stderr.write(`git: destination path '${dir}' already exists and is not an empty directory\n`);
                     return 1;
                 }
                 io.stdout.write(`Cloning ${repoUrl} into ${dir}...`);
@@ -45,7 +45,7 @@ export default <CommandDefinition>{
                     io.stdout.write(`\nCloned ${repoUrl} into ${dir}\n`);
                     return 0;
                 } catch (err) {
-                    io.stderr.write(`\ngit clone error: ${err.message}\n`);
+                    io.stderr.write(`\ngit: ${err.message}\n`);
                     return 1;
                 }
             }
@@ -70,7 +70,7 @@ export default <CommandDefinition>{
                     io.stdout.write(`\nPulled latest changes into ${dir}\n`);
                     return 0;
                 } catch (err) {
-                    io.stderr.write(`\ngit pull error: ${err.message}\n`);
+                    io.stderr.write(`\ngit: ${err.message}\n`);
                     return 1;
                 }
             }

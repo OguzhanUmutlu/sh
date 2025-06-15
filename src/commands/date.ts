@@ -19,8 +19,6 @@ export default <CommandDefinition>{
             timeZoneName: "shortOffset",
         });
 
-        console.log(formatted)
-
         const spl = formatted.split(", ");
 
         const result = spl[0] + " " + spl[1] + " " + spl[3].replace(/GMT\+\d+/, r => "+" + r.slice(4).padStart(2, "0")) + " " + date.getFullYear();

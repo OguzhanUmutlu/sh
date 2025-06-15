@@ -21,7 +21,7 @@ export default <CommandDefinition>{
                     io.stderr.write(`rm: cannot remove '${arg}': Is a directory\n`);
                     return 1;
                 }
-                fs.rmSync(P(arg), {recursive: params.recursive, force: params.force});
+                fs.rmSync(P(arg), {recursive: !!params.recursive, force: !!params.force});
             } catch (e) {
                 if (P(arg) === "/") return 0;
                 io.stderr.write(`rm: ${arg}: No such file or directory\n`);

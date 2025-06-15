@@ -19,7 +19,7 @@ export default <CommandDefinition>{
 
         const cmd = runCommand(command, io);
 
-        await pickPromise([io.stdin.term(), wait(time), cmd.wait()]);
+        await pickPromise([io.term.wait(), wait(time), cmd.wait()]);
 
         if (cmd.exitCode === -1) cmd.abort();
 

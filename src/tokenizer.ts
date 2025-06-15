@@ -100,7 +100,7 @@ export function tokenize(input: string): Token[] {
         if (currentWord) {
             tokens.push({type: "word", value: currentWord});
         }
-        if (depth !== 0) throw new Error("Unclosed substitution");
+        if (depth !== 0) throw new Error("unclosed substitution");
         return tokens;
     }
 
@@ -143,7 +143,7 @@ export function tokenize(input: string): Token[] {
                 i++;
             }
         }
-        throw new Error("Unclosed double quote");
+        throw new Error("unclosed double quote");
     }
 
     const tokens: Token[] = [];
@@ -185,7 +185,7 @@ export function tokenize(input: string): Token[] {
             while (i < length && input[i] !== "'") {
                 val += input[i++];
             }
-            if (i >= length) throw new Error("Unclosed single quote");
+            if (i >= length) throw new Error("unclosed single quote");
             i++;
             tokens.push({type: "string", value: [val]});
             continue;

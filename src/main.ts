@@ -1,8 +1,9 @@
-import {canvas, FG, print, S, scrollToBottom} from "@/renderer";
+import {canvas, FG, print, S} from "@/renderer";
 import {configureSingle, fs} from "@zenfs/core";
 import {IndexedDB} from '@zenfs/dom';
 import {runBashFile, runCommand, variables} from "@/command";
 import {Buffer} from 'buffer'
+import {baseStdin} from "@/stream";
 
 window.Buffer = Buffer;
 console.time("ZenFS:configureSingle");
@@ -21,8 +22,7 @@ if (!fs.existsSync("home/.bashrc")) {
     fs.writeFileSync("home/.bashrc", `echo "${FG.cyan}Welcome to the terminal!${S.clear}"
 echo "${FG.yellow}Type 'help' to see a list of commands.${S.clear}"
 echo ""
-set 'PREFIX=echo -n "${PREFIX.replace("$", "$")}"'
-cd /home
+cd
 `);
 }
 
@@ -53,20 +53,6 @@ if (isNaN(historyIndex)) {
     historyIndex = history.length - 1;
 }
 
-export const stdin = [];
-
-export function openStdin(cb: (input: string) => void) {
-    stdin.push(cb);
-    return () => {
-        const index = stdin.indexOf(cb);
-        if (index !== -1) stdin.splice(index, 1);
-    };
-}
-
-export function closeStdin() {
-    stdin.length = 0;
-}
-
 const Shortcuts = {
     Backspace: "\b",
     Delete: "\x1b[1C\b",
@@ -75,6 +61,9 @@ const Shortcuts = {
     KeyDown: "\x1b[1B",
     KeyRight: "\x1b[1C",
     KeyLeft: "\x1b[1D",
+    Home: "\x1b[Home",
+    End: "\x1b[End",
+    Escape: "\x1b[Escape",
 
     ArrowUp: "\x1b[1A",
     ArrowDown: "\x1b[1B",
@@ -105,6 +94,22 @@ export function extractModifiers(input: string) {
     };
 }
 
+function countCtrlLeft() {
+    for (let i = curIndex - 1; i >= 0; i--) {
+        if (commandText[i] === " ") return curIndex - i;
+        if (i === 0) return curIndex;
+    }
+    return 0;
+}
+
+function countCtrlRight() {
+    for (let i = curIndex; i < commandText.length; i++) {
+        if (commandText[i] === " ") return i - curIndex + 1;
+        if (i === commandText.length - 1) return commandText.length - curIndex;
+    }
+    return 0;
+}
+
 async function terminalInput(input: string, e: Event) {
     const mod = extractModifiers(input);
     const {ctrl, alt, shift, meta, hasModifier} = mod;
@@ -118,12 +123,13 @@ async function terminalInput(input: string, e: Event) {
         if (historyIndex !== 0 && history[historyIndex - 1] === commandText.trim()) {
             history[historyIndex] = "";
         } else {
-            const isBack = historyIndex !== history.length - 1;
+            const isBack = historyIndex === history.length - 1;
             history.length = historyIndex + 1;
-            if (isBack) {
+            if (!isBack) {
                 history.push(commandText);
                 historyIndex++;
             }
+
             history.push("");
             historyIndex++;
             if (fs.existsSync("home/.history") && fs.statSync("home/.history").isFile()) {
@@ -135,38 +141,53 @@ async function terminalInput(input: string, e: Event) {
                 fs.writeFileSync("home/.history", historyIndex + "\n" + history.join("\n"));
             }
         }
-        scrollToBottom();
         await runCommand(commandText.trim()).wait();
         commandText = "";
         curIndex = 0;
         await printPrefix();
         replOn = true;
-        stdin.length = 0;
+        baseStdin.callbacks.length = 0;
         return;
-    }
-    if (input === Shortcuts.Backspace) {
-        if (hasModifier || curIndex <= 0) return;
+    } else if (input === Shortcuts.Backspace) {
+        if (curIndex <= 0) return;
+        if (ctrl) {
+            const len = countCtrlLeft();
+            print("\b".repeat(len));
+            commandText = commandText.slice(0, curIndex - len) + commandText.slice(curIndex);
+            curIndex -= len;
+            if (historyIndex === history.length - 1) history[historyIndex] = commandText;
+            return;
+        }
         print("\b");
         curIndex--;
         commandText = commandText.slice(0, curIndex) + commandText.slice(curIndex + 1);
         if (historyIndex === history.length - 1) history[historyIndex] = commandText;
         return;
-    }
-    if (input === Shortcuts.Delete) {
-        if (hasModifier || curIndex >= commandText.length) return;
+    } else if (input === Shortcuts.Delete) {
+        if (curIndex >= commandText.length) return;
+        if (ctrl) {
+            const len = countCtrlRight();
+            print("\x1b[" + len + "C" + "\b".repeat(len));
+            commandText = commandText.slice(0, curIndex) + commandText.slice(curIndex + len);
+            if (historyIndex === history.length - 1) history[historyIndex] = commandText;
+            return;
+        }
         print("\x1b[1C\b");
         commandText = commandText.slice(0, curIndex) + commandText.slice(curIndex + 1);
         if (historyIndex === history.length - 1) history[historyIndex] = commandText;
         return;
-    }
-    if (input === Shortcuts.KeyLeft || input === Shortcuts.KeyRight) {
+    } else if (input === Shortcuts.KeyLeft || input === Shortcuts.KeyRight) {
         const left = input === Shortcuts.KeyLeft;
-        if (hasModifier || (left && curIndex <= 0) || (!left && curIndex >= commandText.length)) return;
-        print(input);
-        curIndex += left ? -1 : 1;
+        if ((left && curIndex <= 0) || (!left && curIndex >= commandText.length)) return;
+        let len = 1;
+        if (ctrl) {
+            len = left ? countCtrlLeft() : countCtrlRight();
+            if (!len) return;
+        }
+        print(input.replace("1", len.toString()));
+        curIndex += left ? -len : len;
         return;
-    }
-    if (input === Shortcuts.KeyUp || input === Shortcuts.KeyDown) {
+    } else if (input === Shortcuts.KeyUp || input === Shortcuts.KeyDown) {
         const up = input === Shortcuts.KeyUp;
         if (hasModifier || (up && historyIndex === 0) || (!up && historyIndex === history.length - 1)) return;
         historyIndex += up ? -1 : 1;
@@ -175,6 +196,18 @@ async function terminalInput(input: string, e: Event) {
         print(history[historyIndex]);
         curIndex = history[historyIndex].length;
         commandText = history[historyIndex];
+        return;
+    } else if (input === Shortcuts.Home || input === Shortcuts.End) {
+        if (hasModifier) return;
+        if (input === Shortcuts.Home) {
+            if (!curIndex) return;
+            print("\x1b[" + curIndex + "D");
+            curIndex = 0;
+        } else {
+            if (curIndex >= commandText.length) return;
+            print("\x1b[" + (commandText.length - curIndex + 1) + "C");
+            curIndex = commandText.length;
+        }
         return;
     }
 
@@ -209,7 +242,6 @@ async function onKeyDown(e: KeyboardEvent) {
     if (key in Shortcuts) key = Shortcuts[key];
 
     if (e.ctrlKey || e.altKey || e.metaKey) {
-        key = key.toLowerCase();
         let mod = "\x1b{";
         if (e.shiftKey) mod += "s";
         if (e.altKey) mod += "a";
@@ -220,7 +252,7 @@ async function onKeyDown(e: KeyboardEvent) {
     }
 
     if (replOn) await terminalInput(key, e);
-    else for (const cb of stdin) cb(key);
+    else for (const cb of baseStdin.callbacks) cb(key);
 }
 
 addEventListener("keydown", onKeyDown);
@@ -243,4 +275,16 @@ input.addEventListener("input", async e => {
     }
     terminalInput(val.slice(1), e).then(r => r);
     input.value = " ";
+});
+addEventListener("paste", async e => {
+    e.preventDefault();
+    const clipboardData = e.clipboardData || (window as any).clipboardData;
+    if (!clipboardData) return;
+
+    const text = clipboardData.getData("text");
+    if (!text) return;
+
+    for (const char of text) {
+        await terminalInput(char, e);
+    }
 });

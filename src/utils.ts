@@ -25,7 +25,7 @@ export function wait(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-export function pickPromise<T>(promises: Promise<T>[]): Promise<[T, number]> {
+export function pickPromise<T extends any[]>(promises: Promise<T[number]>[]): Promise<[T[number], number]> {
     return new Promise((resolve, reject) => {
         promises.forEach((p, i) => p.then(v => resolve([v, i])).catch(reject));
     });

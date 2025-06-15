@@ -18,10 +18,8 @@ export default <CommandDefinition>{
         const url = args[0];
         let outputFile = params.output;
 
-        const term = io.stdin.term();
-
         try {
-            const [response, i] = await pickPromise([fetch(url), term]);
+            const [response, i] = await pickPromise([fetch(url), io.term.wait()]);
             if (i === 1) return 0;
             if (!response.ok) {
                 io.stderr.write(`curl: failed to fetch '${url}': ${response.status} ${response.statusText}\n`);
@@ -29,14 +27,12 @@ export default <CommandDefinition>{
             }
 
             const data = await response.arrayBuffer();
-            if (outputFile) fs.writeFileSync(P(outputFile), Buffer.from(data));
+            if (outputFile) fs.writeFileSync(P(<string>outputFile), Buffer.from(data));
             else io.stdout.write(Buffer.from(data).toString());
         } catch (e) {
             io.stderr.write(`curl: error fetching '${url}': ${e.message}\n`);
             return 1;
         }
-
-        io.stdin.cb.pop();
 
         return 0;
     }

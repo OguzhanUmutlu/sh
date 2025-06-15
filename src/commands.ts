@@ -27,15 +27,17 @@ import sleep from "@/commands/sleep";
 import timeout from "@/commands/timeout";
 import yes from "@/commands/yes";
 import curl from "@/commands/curl";
+import random from "@/commands/random";
+import tput from "@/commands/tput";
 
 export type CommandDefinition<T extends string = string> = {
     description: string,
     namedParams?: Record<T, string>,
     shortParams?: Record<string, string>,
-    run: (args: string[], params: Record<T, boolean>, io: IO) => Promise<number>
+    run: (args: string[], params: Record<T, boolean | string>, io: IO) => Promise<number>
 };
 
 export const Commands: Record<string, CommandDefinition> = {
     help, clear, echo, cat, grep, set, ls, rm, cowsay, lolcat, figlet, alias, date, cd, mkdir, pwd, touch, theme,
-    chmod, github, git, vim, exit, cmatrix, sleep, timeout, yes, curl
+    chmod, github, git, vim, exit, cmatrix, sleep, timeout, yes, curl, random, tput
 };
